@@ -16,8 +16,11 @@ import java.io.PrintWriter;
 import java.io.SequenceInputStream;
 import java.io.StringWriter;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,15 +61,15 @@ public class Process extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        int count = 0;
+
         System.out.println("entering doPost");
-        
+        int count = 0;
+
             //tried to separate upload and doPost but it meant 
             //i had to declare count outside their respective 
             //methods i.e. threading sadtimes
-        
         //doUpload(request.getParts());
-        
+        //Random generator = new Random();
         //get parts
         Collection<Part> parts = request.getParts();
         System.out.println("got parts");
@@ -75,16 +78,24 @@ public class Process extends HttpServlet {
         //create the string for the program location
         String program = null;
         //iterate through parts
+        List<String> songs = new ArrayList<String>();
         for (Part part : parts) {
             System.out.println("content type: " + part.getContentType());
 
             //if the part has a content type then it is an audio file
             if (part.getContentType() != null) {
+                Random generator = new Random();
                 count++;
                 System.out.println(part.getName() + " is an audio file and count is " + count);
-
+                int name = generator.nextInt();
+                songs.add("sound/uploadedfile" + name + ".wav");
                 //so save to file
-                part.write("uploadedfile" + count + ".wav");
+                try{
+                part.write("uploadedfile" + name + ".wav");
+                }catch(Exception e ){
+                    e.printStackTrace();
+                    e.getMessage();
+                }
                 //otherwise it is the select inputs content
             } else {
                 //you use a scanner to get the content of this part
@@ -92,7 +103,7 @@ public class Process extends HttpServlet {
                 Scanner scanner = new Scanner(programs);
                 if (scanner.hasNext()) {
                     program = "sound/" + scanner.nextLine();
-                    //if for some reason a input strea isn't found you are redirected to an error page
+                    //if for some reason a input stream isn't found you are redirected to an error page
                 } else {
 
                     request.getRequestDispatcher("error.jsp").forward(request, response);
@@ -101,15 +112,17 @@ public class Process extends HttpServlet {
             }
         }
         //get the array list of file names
-        String[] songs = new String[count];
-        for (int i = 0; i < count; i++) {
-            songs[i] = "sound/uploadedfile" + (i + 1) + ".wav";
-            System.out.println("sound/uploadedfile" + (i + 1) + ".wav");
-        }
+        //String[] songs = new String[count];
+        //for (int i = 0; i < count; i++) {
+        //songs[i] = "sound/uploadedfile" + (i + 1) + ".wav";
+        //System.out.println("sound/uploadedfile" + (i + 1) + ".wav");
+        //}
 
         try {
+            //make list an array
+            String[] songss = songs.toArray(new String[songs.size()]);
             //overlay program with songs
-            overlay(program, songs);
+            overlay(program, songss);
             //output file to web service
             finish(request, response);
         } catch (Exception ex) {
@@ -163,12 +176,12 @@ public class Process extends HttpServlet {
 
     public AudioInputStream loadToWav(String c) throws Exception {
         System.out.println("in loadtowav loading " + c);
-          //This was me trying to make things wait til they were uploaded before they were processed
+        //This was me trying to make things wait til they were uploaded before they were processed
 //        File f = new File("C:/Users/Leigh/Documents/NetBeansProjects/RUNTHIS/src/java/"+c);
 //        while(!f.exists() && !f.isDirectory()){
 //           System.out.println("waiting for : "+f.getAbsolutePath());
 //        }
-        AudioInputStream ais;
+        AudioInputStream ais = null;
         AudioInputStream rightais;
         String rightfile = "sound/file1.wav";
         try {
@@ -180,7 +193,11 @@ public class Process extends HttpServlet {
             InputStream rightis = this.getClass().getClassLoader()
                     .getResourceAsStream(rightfile);
             //fill audioinputstreams with these inputstreams
+            try{
             ais = AudioSystem.getAudioInputStream(is);
+            }catch(Exception e){
+                e.getStackTrace();
+            }
             rightais = AudioSystem.getAudioInputStream(rightis);
 
         } catch (IOException e) {
@@ -247,6 +264,7 @@ public class Process extends HttpServlet {
         try {
             //for each song
             for (int i = 0; i < songs.length; i++) {
+                System.out.println("concatenating: "+songs[i]);
                 //load it to wav
                 AudioInputStream second = loadToWav(songs[i]);
                 //create a sequence input stream with the files concatenated so far and the new file
@@ -448,7 +466,7 @@ public class Process extends HttpServlet {
         }
 
         fileInputStream.close();
-
+        out.flush();
         out.close();
         //}
     }
